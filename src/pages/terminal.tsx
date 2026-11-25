@@ -49,7 +49,15 @@ import { BookingDetailModal } from '@/components/BookingDetailModal';
 const RAW_BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://32.237.40.95:4000';
 // Strip trailing /api/v1 or /api to prevent Socket.IO from treating it as an invalid namespace
 const BACKEND_BASE = RAW_BACKEND_URL.replace(/\/api(\/v1)?\/?$/, '');
-const BACKEND_URL = BACKEND_BASE;
+
+// On HTTPS production (e.g. Vercel), route via relative URL to use Vercel rewrites and prevent Mixed Content
+const getBackendUrl = () => {
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    return '';
+  }
+  return BACKEND_BASE;
+};
+const BACKEND_URL = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '' : BACKEND_BASE;
 
 const MONTH_SHORT_NAMES = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -162,19 +170,10 @@ export default function ShilpiWebTerminal() {
   const [errorMessage, setErrorMessage] = useState('');
   const [demoNotice, setDemoNotice] = useState('');
 
-  // QR Pairing State - Instantly initialized so terminal QR is immediately visible
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(() => {
-    const initSessionId = 'shilpi_term_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-    const initialPayload = JSON.stringify({
-      app: 'shilpi',
-      action: 'link_terminal',
-      sessionId: initSessionId,
-      timestamp: Date.now(),
-    });
-    return `https://api.qrserver.com/v1/create-qr-code/?size=256x256&margin=4&data=${encodeURIComponent(initialPayload)}`;
-  });
+  // QR Pairing State (Requires genuine backend session so mobile authorization succeeds)
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [pairingStatus, setPairingStatus] = useState<string>('Ready to scan');
+  const [pairingStatus, setPairingStatus] = useState<string>('Connecting to terminal socket gateway...');
 
   // Dashboard Data State
   const [activeSection, setActiveSection] = useState<SidebarSectionId>('dashboard');
@@ -238,22 +237,14 @@ export default function ShilpiWebTerminal() {
 
   // 1. Initialize Real-Time Socket Connection for Terminal Pairing
   useEffect(() => {
-    // Generate an immediate high-contrast pairing QR code on frame 1 so user never waits
-    const initSessionId = typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : 'shilpi_term_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-    const initialPayload = JSON.stringify({
-      app: 'shilpi',
-      action: 'link_terminal',
-      sessionId: initSessionId,
-      timestamp: Date.now(),
-    });
-    setQrDataUrl((prev) => prev || `https://api.qrserver.com/v1/create-qr-code/?size=256x256&margin=4&data=${encodeURIComponent(initialPayload)}`);
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    const socketEndpoint = isHttps ? window.location.origin : BACKEND_BASE;
 
-    const s = io(BACKEND_BASE, {
-      transports: ['polling', 'websocket'],
+    const s = io(socketEndpoint, {
+      path: '/socket.io',
+      transports: ['polling'],
       reconnection: true,
-      reconnectionAttempts: 25,
+      reconnectionAttempts: 50,
       reconnectionDelay: 1000,
       timeout: 10000,
     });
@@ -264,15 +255,17 @@ export default function ShilpiWebTerminal() {
     };
 
     s.on('connect', () => {
+      console.log('[Terminal Socket] Connected via', s.io.engine.transport.name);
       requestQr();
     });
 
     s.on('connect_error', (err) => {
       console.warn('[Terminal Socket] connection notice:', err.message);
-      setPairingStatus('Ready for scan');
+      setPairingStatus('Reconnecting to pairing gateway...');
     });
 
     s.on('pairing_qr_generated', (data: { sessionId: string; qrDataUrl: string; expiresInSeconds: number }) => {
+      console.log('[Terminal Socket] Official pairing QR received:', data.sessionId);
       setQrDataUrl(data.qrDataUrl);
       setPairingStatus('Ready for scan');
     });
@@ -2155,17 +2148,12 @@ export default function ShilpiWebTerminal() {
             qrDataUrl={qrDataUrl}
             pairingStatus={pairingStatus}
             onRefreshQr={() => {
+              setQrDataUrl(null);
+              setPairingStatus('Generating fresh pairing QR...');
               if (socket && socket.connected) {
                 socket.emit('request_pairing_qr');
-              } else {
-                const newId = 'shilpi_term_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-                const payload = JSON.stringify({
-                  app: 'shilpi',
-                  action: 'link_terminal',
-                  sessionId: newId,
-                  timestamp: Date.now(),
-                });
-                setQrDataUrl(`https://api.qrserver.com/v1/create-qr-code/?size=256x256&margin=4&data=${encodeURIComponent(payload)}`);
+              } else if (socket) {
+                socket.connect();
               }
             }}
             onSendOtp={handleSendOtp}

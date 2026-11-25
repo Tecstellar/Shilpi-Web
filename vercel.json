@@ -7,6 +7,10 @@
       "destination": "http://32.237.40.95:4000/api/v1/:path*"
     },
     {
+      "source": "/socket.io",
+      "destination": "http://32.237.40.95:4000/socket.io/"
+    },
+    {
       "source": "/socket.io/:path*",
       "destination": "http://32.237.40.95:4000/socket.io/:path*"
     }
