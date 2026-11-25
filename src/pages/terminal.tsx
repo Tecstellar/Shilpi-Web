@@ -162,10 +162,19 @@ export default function ShilpiWebTerminal() {
   const [errorMessage, setErrorMessage] = useState('');
   const [demoNotice, setDemoNotice] = useState('');
 
-  // QR Pairing State
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  // QR Pairing State - Instantly initialized so terminal QR is immediately visible
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(() => {
+    const initSessionId = 'shilpi_term_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+    const initialPayload = JSON.stringify({
+      app: 'shilpi',
+      action: 'link_terminal',
+      sessionId: initSessionId,
+      timestamp: Date.now(),
+    });
+    return `https://api.qrserver.com/v1/create-qr-code/?size=256x256&margin=4&data=${encodeURIComponent(initialPayload)}`;
+  });
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [pairingStatus, setPairingStatus] = useState<string>('Connecting to terminal socket gateway...');
+  const [pairingStatus, setPairingStatus] = useState<string>('Ready to scan');
 
   // Dashboard Data State
   const [activeSection, setActiveSection] = useState<SidebarSectionId>('dashboard');
@@ -2145,7 +2154,20 @@ export default function ShilpiWebTerminal() {
             demoNotice={demoNotice}
             qrDataUrl={qrDataUrl}
             pairingStatus={pairingStatus}
-            onRefreshQr={() => socket?.emit('request_pairing_qr')}
+            onRefreshQr={() => {
+              if (socket && socket.connected) {
+                socket.emit('request_pairing_qr');
+              } else {
+                const newId = 'shilpi_term_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+                const payload = JSON.stringify({
+                  app: 'shilpi',
+                  action: 'link_terminal',
+                  sessionId: newId,
+                  timestamp: Date.now(),
+                });
+                setQrDataUrl(`https://api.qrserver.com/v1/create-qr-code/?size=256x256&margin=4&data=${encodeURIComponent(payload)}`);
+              }
+            }}
             onSendOtp={handleSendOtp}
             onVerifyOtp={handleVerifyOtp}
             onFillDemo={fillDemoCredentials}
