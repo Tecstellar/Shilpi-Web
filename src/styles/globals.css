@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #faf8f9;
+  --surface: #ffffff;
+  --foreground: #121214;
+  --muted: #52525b;
+  --hairline: rgba(18, 18, 20, 0.09);
+  --accent: #e8276b;
+  --deep: #a50f45;
+  --pale-pink: #ffeef4;
+}
+
+::selection {
+  background: #ffe0ec;
+  color: #a50f45;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  caret-color: var(--accent);
+}
+
+/* Crisp accessible keyboard focus ring matching the Shilpi ink & crimson system */
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Quiet architectural scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(18, 18, 20, 0.16);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 39, 107, 0.45);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(232, 39, 107, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(232, 39, 107, 0);
+  }
+}
+
+@keyframes subtleFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-subtle-float {
+  animation: subtleFloat 4s ease-in-out infinite;
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes floatReverse {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(7px); }
+}
+
+.animate-float-slow {
+  animation: floatSlow 5s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: floatReverse 6s ease-in-out infinite;
+}
+
+.img-zoom {
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.img-zoom:hover {
+  transform: scale(1.03);
+}
+
+.brand-gradient-text {
+  background: linear-gradient(135deg, #e8276b 0%, #ff4d89 50%, #ff9d5c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-card {
+  background: #ffffff;
+  border: 1px solid rgba(18, 18, 20, 0.07);
+  box-shadow: 0 16px 40px -12px rgba(18, 18, 20, 0.06);
+}
+
+.brand-dark-card {
+  background: #121214;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 50px -15px rgba(0, 0, 0, 0.4);
+}
+
+
