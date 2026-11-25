@@ -402,7 +402,7 @@ _Generated via Shilpi App. Bank / UPI payment details attached._`;
               onClick={() => router.push('/terminal')}
               className="hidden sm:inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#E8276B] hover:bg-[#c71957] text-white text-xs font-semibold tracking-wider uppercase transition-all duration-300 shadow-[0_4px_18px_rgba(232,39,107,0.3)] hover:shadow-[0_6px_25px_rgba(232,39,107,0.45)] active:scale-95"
             >
-              <span>Launch Web App</span>
+              <span>Get Started</span>
               <ArrowRight size={14} strokeWidth={2.4} />
             </button>
 
@@ -464,7 +464,7 @@ _Generated via Shilpi App. Bank / UPI payment details attached._`;
               }}
               className="w-full py-3.5 rounded-full bg-[#E8276B] text-white text-xs font-semibold tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg mt-2"
             >
-              <span>Launch Web App</span>
+              <span>Get Started</span>
               <ArrowRight size={14} />
             </button>
           </div>
@@ -1456,7 +1456,7 @@ _Generated via Shilpi App. Bank / UPI payment details attached._`;
                   onClick={() => router.push('/terminal')}
                   className="px-8 py-4 rounded-full bg-[#E8276B] hover:bg-[#c71957] text-white text-xs font-semibold tracking-wider uppercase transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                 >
-                  Launch Shilpi Web Desk →
+                  Get Started with Web Desk →
                 </button>
                 <a
                   href="https://wa.me/918870500106?text=Hi%20Shilpi%2C%20I%20would%20like%20to%20request%20a%20bridal%20studio%20demo."

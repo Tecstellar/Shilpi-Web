@@ -46,7 +46,10 @@ import { SubscriptionView } from '@/components/SubscriptionView';
 import { SettingsView } from '@/components/SettingsView';
 import { BookingDetailModal } from '@/components/BookingDetailModal';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://32.237.40.95:4000';
+const RAW_BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://32.237.40.95:4000';
+// Strip trailing /api/v1 or /api to prevent Socket.IO from treating it as an invalid namespace
+const BACKEND_BASE = RAW_BACKEND_URL.replace(/\/api(\/v1)?\/?$/, '');
+const BACKEND_URL = BACKEND_BASE;
 
 const MONTH_SHORT_NAMES = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -226,12 +229,27 @@ export default function ShilpiWebTerminal() {
 
   // 1. Initialize Real-Time Socket Connection for Terminal Pairing
   useEffect(() => {
-    const s = io(BACKEND_URL, { transports: ['websocket'] });
+    const s = io(BACKEND_BASE, {
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: 20,
+      reconnectionDelay: 1000,
+      timeout: 10000,
+    });
     setSocket(s);
 
-    s.on('connect', () => {
+    const requestQr = () => {
       setPairingStatus('Requesting dynamic session token...');
       s.emit('request_pairing_qr');
+    };
+
+    s.on('connect', () => {
+      requestQr();
+    });
+
+    s.on('connect_error', (err) => {
+      console.warn('[Terminal Socket] connection notice:', err.message);
+      setPairingStatus('Connecting to terminal socket gateway...');
     });
 
     s.on('pairing_qr_generated', (data: { sessionId: string; qrDataUrl: string; expiresInSeconds: number }) => {

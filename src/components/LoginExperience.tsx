@@ -743,13 +743,13 @@ export default function LoginExperience({
                     </div>
 
                     {/* QR Canvas / Gateway Waiting State */}
-                    <div className="relative w-[184px] h-[184px] flex items-center justify-center overflow-hidden rounded-lg bg-white">
+                    <div className="relative w-[210px] h-[210px] flex items-center justify-center overflow-hidden rounded-xl bg-white p-1">
                       {qrDataUrl ? (
                         <>
                           <img
                             src={qrDataUrl}
                             alt="Shilpi Studio Terminal Pairing QR Code"
-                            className="w-[184px] h-[184px] object-contain"
+                            className="w-[200px] h-[200px] object-contain select-none"
                           />
                           {/* Optical GSAP Laser Hairline */}
                           <div
@@ -760,8 +760,8 @@ export default function LoginExperience({
                         </>
                       ) : (
                         <div className="flex flex-col items-center justify-center text-center px-4 gap-2.5">
-                          <ScanLine className="w-7 h-7 text-[#e8276b] animate-pulse" />
-                          <span className="text-xs font-medium text-[#52525b] leading-snug">
+                          <ScanLine className="w-8 h-8 text-[#e8276b] animate-pulse" />
+                          <span className="text-xs font-semibold text-[#52525b] leading-snug">
                             {pairingStatus}
                           </span>
                         </div>
