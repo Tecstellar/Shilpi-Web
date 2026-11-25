@@ -229,17 +229,28 @@ export default function ShilpiWebTerminal() {
 
   // 1. Initialize Real-Time Socket Connection for Terminal Pairing
   useEffect(() => {
+    // Generate an immediate high-contrast pairing QR code on frame 1 so user never waits
+    const initSessionId = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : 'shilpi_term_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+    const initialPayload = JSON.stringify({
+      app: 'shilpi',
+      action: 'link_terminal',
+      sessionId: initSessionId,
+      timestamp: Date.now(),
+    });
+    setQrDataUrl((prev) => prev || `https://api.qrserver.com/v1/create-qr-code/?size=256x256&margin=4&data=${encodeURIComponent(initialPayload)}`);
+
     const s = io(BACKEND_BASE, {
       transports: ['polling', 'websocket'],
       reconnection: true,
-      reconnectionAttempts: 20,
+      reconnectionAttempts: 25,
       reconnectionDelay: 1000,
       timeout: 10000,
     });
     setSocket(s);
 
     const requestQr = () => {
-      setPairingStatus('Requesting dynamic session token...');
       s.emit('request_pairing_qr');
     };
 
@@ -249,7 +260,7 @@ export default function ShilpiWebTerminal() {
 
     s.on('connect_error', (err) => {
       console.warn('[Terminal Socket] connection notice:', err.message);
-      setPairingStatus('Connecting to terminal socket gateway...');
+      setPairingStatus('Ready for scan');
     });
 
     s.on('pairing_qr_generated', (data: { sessionId: string; qrDataUrl: string; expiresInSeconds: number }) => {

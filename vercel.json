@@ -1,4 +1,14 @@
 {
   "framework": "nextjs",
-  "installCommand": "npm install --legacy-peer-deps"
+  "installCommand": "npm install --legacy-peer-deps",
+  "rewrites": [
+    {
+      "source": "/api/v1/:path*",
+      "destination": "http://32.237.40.95:4000/api/v1/:path*"
+    },
+    {
+      "source": "/socket.io/:path*",
+      "destination": "http://32.237.40.95:4000/socket.io/:path*"
+    }
+  ]
 }
