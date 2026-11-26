@@ -173,7 +173,61 @@ export default function ShilpiWebTerminal() {
   // QR Pairing State (Requires genuine backend session so mobile authorization succeeds)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [pairingStatus, setPairingStatus] = useState<string>('Connecting to terminal socket gateway...');
+  const [pairingStatus, setPairingStatus] = useState<string>('Initializing pairing gateway...');
+
+  const currentSessionIdRef = useRef<string | null>(null);
+  const sessionExpiresAtRef = useRef<number>(0);
+  const isPairedRef = useRef<boolean>(false);
+  const socketRef = useRef<Socket | null>(null);
+
+  const saveAndSetSession = useCallback((userSession: UserSession) => {
+    if (isPairedRef.current) return;
+    isPairedRef.current = true;
+    setSession(userSession);
+    localStorage.setItem('shilpi_token', userSession.token);
+    localStorage.setItem('shilpi_user_session', JSON.stringify(userSession));
+  }, []);
+
+  // Request a fresh pairing session (via REST with Socket.io fallback)
+  const requestFreshQrSession = useCallback(async (force = false) => {
+    // If we already have a valid session and not forcing, keep it
+    if (!force && currentSessionIdRef.current && sessionExpiresAtRef.current > Date.now()) {
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit('join_session', { sessionId: currentSessionIdRef.current });
+      }
+      return;
+    }
+
+    setPairingStatus('Generating fresh pairing QR...');
+
+    // 1. Try REST endpoint first (100% resilient across proxies, firewalls, and Vercel)
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/v1/auth/qr/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.sessionId && data.qrDataUrl) {
+          currentSessionIdRef.current = data.sessionId;
+          sessionExpiresAtRef.current = Date.now() + (data.expiresInSeconds || 300) * 1000;
+          setQrDataUrl(data.qrDataUrl);
+          setPairingStatus('Ready to scan (5:00)');
+          if (socketRef.current && socketRef.current.connected) {
+            socketRef.current.emit('join_session', { sessionId: data.sessionId });
+          }
+          return;
+        }
+      }
+    } catch {
+      // Fall through to socket emission if REST is unreachable
+    }
+
+    // 2. Fallback to Socket.io emission
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('request_pairing_qr');
+    }
+  }, []);
 
   // Dashboard Data State
   const [activeSection, setActiveSection] = useState<SidebarSectionId>('dashboard');
@@ -235,43 +289,50 @@ export default function ShilpiWebTerminal() {
     }).slice(0, 8);
   }, [clients, newClientName]);
 
-  // 1. Initialize Real-Time Socket Connection for Terminal Pairing
+  // 1. Initialize Real-Time Socket Connection & Fallback Polling for Terminal Pairing
   useEffect(() => {
     const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
     const socketEndpoint = isHttps ? window.location.origin : BACKEND_BASE;
 
     const s = io(socketEndpoint, {
       path: '/socket.io',
-      transports: ['polling'],
+      transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 50,
+      reconnectionAttempts: 100,
       reconnectionDelay: 1000,
       timeout: 10000,
     });
     setSocket(s);
+    socketRef.current = s;
 
-    const requestQr = () => {
-      s.emit('request_pairing_qr');
-    };
+    // Eagerly request initial session
+    requestFreshQrSession();
 
     s.on('connect', () => {
       console.log('[Terminal Socket] Connected via', s.io.engine.transport.name);
-      requestQr();
+      // Rejoin existing session if still valid, or request if none exists
+      if (currentSessionIdRef.current && sessionExpiresAtRef.current > Date.now()) {
+        s.emit('join_session', { sessionId: currentSessionIdRef.current });
+      } else {
+        requestFreshQrSession();
+      }
     });
 
     s.on('connect_error', (err) => {
       console.warn('[Terminal Socket] connection notice:', err.message);
-      setPairingStatus('Reconnecting to pairing gateway...');
     });
 
     s.on('pairing_qr_generated', (data: { sessionId: string; qrDataUrl: string; expiresInSeconds: number }) => {
       console.log('[Terminal Socket] Official pairing QR received:', data.sessionId);
+      currentSessionIdRef.current = data.sessionId;
+      sessionExpiresAtRef.current = Date.now() + (data.expiresInSeconds || 300) * 1000;
       setQrDataUrl(data.qrDataUrl);
-      setPairingStatus('Ready for scan');
+      setPairingStatus('Ready to scan (5:00)');
     });
 
     s.on('pairing_authenticated', (data: any) => {
-      if (data.success) {
+      if (data.success && data.token) {
+        console.log('[Terminal Socket] Real-time pairing authenticated!');
         const userSession: UserSession = {
           token: data.token,
           user: data.user,
@@ -288,16 +349,50 @@ export default function ShilpiWebTerminal() {
       }
     });
 
+    // 2-Second HTTP Polling Safety Net: Checks session status even if socket drops
+    const statusPollInterval = setInterval(async () => {
+      if (isPairedRef.current || !currentSessionIdRef.current) return;
+      if (sessionExpiresAtRef.current <= Date.now()) return;
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/v1/auth/qr/status?sessionId=${currentSessionIdRef.current}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.status === 'paired' && data.token) {
+            console.log('[Terminal Polling] Pairing detected via HTTP safety net!');
+            saveAndSetSession({
+              token: data.token,
+              user: data.user,
+              beautician: data.beautician,
+            });
+          }
+        }
+      } catch {
+        // Silent poll error
+      }
+    }, 2000);
+
+    // 1-Second Countdown Timer
+    const countdownInterval = setInterval(() => {
+      if (isPairedRef.current || !currentSessionIdRef.current) return;
+
+      const remaining = Math.max(0, Math.ceil((sessionExpiresAtRef.current - Date.now()) / 1000));
+      if (remaining > 0) {
+        const mins = Math.floor(remaining / 60);
+        const secs = String(remaining % 60).padStart(2, '0');
+        setPairingStatus(`Ready to scan (${mins}:${secs})`);
+      } else {
+        setQrDataUrl(null);
+        setPairingStatus('QR code expired. Click Refresh.');
+      }
+    }, 1000);
+
     return () => {
+      clearInterval(statusPollInterval);
+      clearInterval(countdownInterval);
       s.disconnect();
     };
-  }, []);
-
-  const saveAndSetSession = (userSession: UserSession) => {
-    setSession(userSession);
-    localStorage.setItem('shilpi_token', userSession.token);
-    localStorage.setItem('shilpi_user_session', JSON.stringify(userSession));
-  };
+  }, [requestFreshQrSession, saveAndSetSession]);
 
   const handleLogout = () => {
     localStorage.removeItem('shilpi_token');
@@ -2147,15 +2242,7 @@ export default function ShilpiWebTerminal() {
             demoNotice={demoNotice}
             qrDataUrl={qrDataUrl}
             pairingStatus={pairingStatus}
-            onRefreshQr={() => {
-              setQrDataUrl(null);
-              setPairingStatus('Generating fresh pairing QR...');
-              if (socket && socket.connected) {
-                socket.emit('request_pairing_qr');
-              } else if (socket) {
-                socket.connect();
-              }
-            }}
+            onRefreshQr={() => requestFreshQrSession(true)}
             onSendOtp={handleSendOtp}
             onVerifyOtp={handleVerifyOtp}
             onFillDemo={fillDemoCredentials}

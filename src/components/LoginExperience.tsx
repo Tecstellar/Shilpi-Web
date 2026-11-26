@@ -777,7 +777,7 @@ export default function LoginExperience({
                           qrDataUrl ? 'bg-emerald-500' : 'bg-[#e8276b] animate-pulse'
                         }`}
                       />
-                      {qrDataUrl ? 'Ready to scan' : 'Generating'}
+                      {qrDataUrl ? (pairingStatus || 'Ready to scan') : (pairingStatus || 'Generating')}
                     </span>
 
                     <button
