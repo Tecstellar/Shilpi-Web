@@ -1,5 +1,6 @@
 import '@/styles/globals.css';
 import type { AppProps } from 'next/app';
+import Head from 'next/head';
 import { Playfair_Display, Manrope, JetBrains_Mono } from 'next/font/google';
 
 const playfair = Playfair_Display({
@@ -26,9 +27,17 @@ const jetbrainsMono = JetBrains_Mono({
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <div className={`${playfair.variable} ${manrope.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
-      <Component {...pageProps} />
-    </div>
+    <>
+      <Head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+      </Head>
+      <div className={`${playfair.variable} ${manrope.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
+        <Component {...pageProps} />
+      </div>
+    </>
   );
 }
 

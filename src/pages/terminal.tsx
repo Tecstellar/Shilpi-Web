@@ -1769,7 +1769,10 @@ export default function ShilpiWebTerminal() {
       <Head>
         <title>Shilpi · Studio Web Terminal</title>
         <meta name="description" content="Shilpi Web Terminal for Bridal Artists & Beauticians" />
-        <link rel="icon" href="/shilpi-mark.png" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
       </Head>
 
       <div className="min-h-screen bg-[#faf8f9] text-[#121214] flex flex-col font-sans">
